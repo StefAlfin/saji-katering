@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const JWT_SECRET = process.env.JWT_SECRET || 'saji-katering-secret-key-123';
 
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -30,8 +30,9 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 async function setupDatabase(): Promise<Database> {
+  const dbPath = process.env.VERCEL ? '/tmp/database.sqlite' : './database.sqlite';
   const db = await open({
-    filename: './database.sqlite',
+    filename: dbPath,
     driver: sqlite3.Database
   });
 
@@ -569,9 +570,22 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+  
+  return app;
 }
 
-startServer();
+// For local dev, we run it
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+// For Vercel, we export a handler
+export default async function handler(req: any, res: any) {
+  const app = await startServer();
+  return app(req, res);
+}
