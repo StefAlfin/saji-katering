@@ -31,6 +31,14 @@ const upload = multer({ storage: storage });
 
 async function setupDatabase(): Promise<Database> {
   const dbPath = process.env.VERCEL ? '/tmp/database.sqlite' : './database.sqlite';
+  
+  if (process.env.VERCEL && !fs.existsSync('/tmp/database.sqlite')) {
+    const sourceDbPath = path.join(process.cwd(), 'database.sqlite');
+    if (fs.existsSync(sourceDbPath)) {
+      fs.copyFileSync(sourceDbPath, '/tmp/database.sqlite');
+    }
+  }
+
   const db = await open({
     filename: dbPath,
     driver: sqlite3.Database

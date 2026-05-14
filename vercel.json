@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "server.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["database.sqlite", "uploads/**"]
+      }
     },
     {
       "src": "package.json",
