@@ -8,11 +8,9 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import multer from 'multer';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const JWT_SECRET = process.env.JWT_SECRET || 'saji-katering-secret-key-123';
 
-const getUploadsDir = () => process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
+const getUploadsDir = () => process.env.VERCEL ? '/tmp/uploads' : path.join(process.cwd(), 'uploads');
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -34,10 +32,14 @@ async function setupDatabase(): Promise<Database> {
   
   try {
     if (process.env.VERCEL && !fs.existsSync('/tmp/database.sqlite')) {
+      // Search for the original database.sqlite in common Vercel output directories
       const pathsToTry = [
         path.join(process.cwd(), 'database.sqlite'),
-        path.join(__dirname, 'database.sqlite'),
-        path.join(__dirname, '..', 'database.sqlite')
+        path.join(process.cwd(), '..', 'database.sqlite'),
+        path.join(process.cwd(), '..', '..', 'database.sqlite'),
+        path.join(process.cwd(), 'dist', 'database.sqlite'),
+        '/var/task/database.sqlite', // Vercel AWX Lambda default
+        '/var/task/user/database.sqlite'
       ];
       let copied = false;
       for (const sourceDbPath of pathsToTry) {
