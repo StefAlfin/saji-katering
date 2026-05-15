@@ -32,11 +32,26 @@ const upload = multer({ storage: storage });
 async function setupDatabase(): Promise<Database> {
   const dbPath = process.env.VERCEL ? '/tmp/database.sqlite' : './database.sqlite';
   
-  if (process.env.VERCEL && !fs.existsSync('/tmp/database.sqlite')) {
-    const sourceDbPath = path.join(process.cwd(), 'database.sqlite');
-    if (fs.existsSync(sourceDbPath)) {
-      fs.copyFileSync(sourceDbPath, '/tmp/database.sqlite');
+  try {
+    if (process.env.VERCEL && !fs.existsSync('/tmp/database.sqlite')) {
+      const pathsToTry = [
+        path.join(process.cwd(), 'database.sqlite'),
+        path.join(__dirname, 'database.sqlite'),
+        path.join(__dirname, '..', 'database.sqlite')
+      ];
+      let copied = false;
+      for (const sourceDbPath of pathsToTry) {
+        if (fs.existsSync(sourceDbPath)) {
+          fs.copyFileSync(sourceDbPath, '/tmp/database.sqlite');
+          console.log("Vercel SQLite: Copied from", sourceDbPath);
+          copied = true;
+          break;
+        }
+      }
+      if (!copied) console.log("Vercel SQLite: Starting fresh database.");
     }
+  } catch (err) {
+    console.error("Error setting up Vercel SQLite /tmp copy:", err);
   }
 
   const db = await open({
@@ -257,13 +272,18 @@ async function startServer() {
 
   // Menus
   app.get('/api/menus', async (req, res) => {
-    const menus = await db.all(`
-      SELECT m.*, 
-             COALESCE((SELECT AVG(rating) FROM reviews WHERE menu_id = m.id), 0) as avg_rating,
-             (SELECT COUNT(*) FROM reviews WHERE menu_id = m.id) as review_count
-      FROM menus m
-    `);
-    res.json(menus);
+    try {
+      const menus = await db.all(`
+        SELECT m.*, 
+               COALESCE((SELECT AVG(rating) FROM reviews WHERE menu_id = m.id), 0) as avg_rating,
+               (SELECT COUNT(*) FROM reviews WHERE menu_id = m.id) as review_count
+        FROM menus m
+      `);
+      res.json(menus);
+    } catch (e: any) {
+      console.error("GET /api/menus err:", e);
+      res.status(500).json({ error: e.message });
+    }
   });
   
   app.post('/api/menus', authenticateToken, isAdmin, upload.single('image'), async (req, res) => {
@@ -592,8 +612,13 @@ if (!process.env.VERCEL) {
   startServer();
 }
 
+let cachedAppPromise: Promise<any> | null = null;
+
 // For Vercel, we export a handler
 export default async function handler(req: any, res: any) {
-  const app = await startServer();
+  if (!cachedAppPromise) {
+    cachedAppPromise = startServer();
+  }
+  const app = await cachedAppPromise;
   return app(req, res);
 }
