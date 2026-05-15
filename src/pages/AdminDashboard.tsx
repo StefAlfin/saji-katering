@@ -276,6 +276,22 @@ export default function AdminDashboard() {
                         setImageUrl(e.target.value);
                         if (e.target.value) setImageFile(null);
                       }} />
+                    
+                    {/* Image Preview */}
+                    {(imageUrl || imageFile) && (
+                      <div className="md:col-span-2 mt-2">
+                        <p className="text-sm text-neutral-500 mb-2">Preview Gambar:</p>
+                        <img 
+                          src={imageFile ? URL.createObjectURL(imageFile) : imageUrl} 
+                          alt="Preview" 
+                          className="w-32 h-32 object-cover rounded-xl border border-neutral-200"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Invalid+Image';
+                          }}
+                        />
+                      </div>
+                    )}
+
                     <textarea placeholder="Deskripsi Singkat" className="p-2 border rounded-xl md:col-span-2"
                       value={newMenu.description} onChange={e => setNewMenu({...newMenu, description: e.target.value})} />
                     <div className="flex gap-4 md:col-span-2">

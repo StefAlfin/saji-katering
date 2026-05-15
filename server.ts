@@ -240,6 +240,10 @@ async function startServer() {
   }
   app.use('/uploads', express.static(currentUploadsDir));
   
+  if (process.env.VERCEL) {
+    app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  }
+  
   const db = await setupDatabase();
 
   // ----- API ROUTES -----
