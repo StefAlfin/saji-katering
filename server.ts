@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import bcrypt from 'bcryptjs';
@@ -13,14 +12,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const JWT_SECRET = process.env.JWT_SECRET || 'saji-katering-secret-key-123';
 
-const uploadsDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+const getUploadsDir = () => process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadsDir);
+    const dir = getUploadsDir();
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -231,7 +231,12 @@ async function startServer() {
   const PORT = 3000;
   
   app.use(express.json());
-  app.use('/uploads', express.static(uploadsDir));
+  
+  const currentUploadsDir = getUploadsDir();
+  if (!fs.existsSync(currentUploadsDir)) {
+    fs.mkdirSync(currentUploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(currentUploadsDir));
   
   const db = await setupDatabase();
 
@@ -584,18 +589,21 @@ async function startServer() {
   });
 
   // --- VITE MIDDLEWARE ---
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+  if (!process.env.VERCEL) {
+    if (process.env.NODE_ENV !== 'production') {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*all', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   }
 
   if (!process.env.VERCEL) {
@@ -616,9 +624,14 @@ let cachedAppPromise: Promise<any> | null = null;
 
 // For Vercel, we export a handler
 export default async function handler(req: any, res: any) {
-  if (!cachedAppPromise) {
-    cachedAppPromise = startServer();
+  try {
+    if (!cachedAppPromise) {
+      cachedAppPromise = startServer();
+    }
+    const app = await cachedAppPromise;
+    return app(req, res);
+  } catch (err: any) {
+    console.error("Vercel Start Error:", err);
+    return res.status(500).json({ error: "Failed to initialize server", details: err.message });
   }
-  const app = await cachedAppPromise;
-  return app(req, res);
 }
