@@ -25,14 +25,14 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<{ form?: string, username?: string, email?: string, password?: string }>({});
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setErrors({});
     setLoading(true);
 
     try {
@@ -47,6 +47,10 @@ export default function Login() {
         const regData = await regRes.json();
         
         if (!regRes.ok) {
+          if (regData.field) {
+            setErrors({ [regData.field]: regData.error });
+            return;
+          }
           throw new Error(regData.error || 'Gagal mendaftar');
         }
       }
@@ -61,6 +65,10 @@ export default function Login() {
       const data = await res.json();
       
       if (!res.ok) {
+        if (data.field) {
+           setErrors({ [data.field]: data.error });
+           return;
+        }
         throw new Error(data.error || 'Gagal masuk');
       }
 
@@ -71,7 +79,7 @@ export default function Login() {
         navigate('/');
       }
     } catch (err: any) {
-      setError(err.message);
+      setErrors({ form: err.message });
     } finally {
       setLoading(false);
     }
@@ -90,9 +98,9 @@ export default function Login() {
             </p>
           </div>
           
-          {error && (
+          {errors.form && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm">
-              {error}
+              {errors.form}
             </div>
           )}
 
@@ -114,15 +122,21 @@ export default function Login() {
                     className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none transition mb-4"
                     placeholder="Nama Anda"
                   />
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    required={isRegistering}
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none transition"
-                    placeholder="email@contoh.com"
-                  />
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      required={isRegistering}
+                      value={email}
+                      onChange={e => {
+                         setEmail(e.target.value);
+                         if (errors.email) setErrors({ ...errors, email: undefined });
+                      }}
+                      className={`w-full px-4 py-2 border rounded-xl focus:ring-2 focus:border-transparent outline-none transition ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:ring-orange-600'}`}
+                      placeholder="email@contoh.com"
+                    />
+                    {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -133,10 +147,14 @@ export default function Login() {
                 type="text"
                 required
                 value={username}
-                onChange={e => setUsername(e.target.value)}
-                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none transition"
+                onChange={e => {
+                   setUsername(e.target.value);
+                   if (errors.username) setErrors({ ...errors, username: undefined });
+                }}
+                className={`w-full px-4 py-2 border rounded-xl focus:ring-2 focus:border-transparent outline-none transition ${errors.username ? 'border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:ring-orange-600'}`}
                 placeholder="username"
               />
+              {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
             </div>
 
             <AnimatePresence>
@@ -166,10 +184,14 @@ export default function Login() {
                 type="password"
                 required
                 value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none transition"
+                onChange={e => {
+                   setPassword(e.target.value);
+                   if (errors.password) setErrors({ ...errors, password: undefined });
+                }}
+                className={`w-full px-4 py-2 border rounded-xl focus:ring-2 focus:border-transparent outline-none transition ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:ring-orange-600'}`}
                 placeholder="********"
               />
+              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
             </div>
 
             <button
@@ -187,7 +209,7 @@ export default function Login() {
               type="button"
               onClick={() => {
                  setIsRegistering(!isRegistering);
-                 setError('');
+                 setErrors({});
               }} 
               className="text-orange-600 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer"
             >

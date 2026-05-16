@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { Package, Clock, Star } from 'lucide-react';
+import { Package, Clock, Star, Edit2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 function PageTransition({ children }: { children: React.ReactNode }) {
@@ -25,7 +25,14 @@ export default function UserDashboard() {
   const [reviewingMenuId, setReviewingMenuId] = useState<number | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
-  const { user, token } = useAuth();
+  
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const { user, token, login } = useAuth();
   const navigate = useNavigate();
 
   const fetchOrders = () => {
@@ -39,6 +46,47 @@ export default function UserDashboard() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  const handleEditProfileClick = () => {
+    if (user) {
+      setEditName(user.name || '');
+      setEditPhone(user.phone || '');
+      setEditPassword('');
+      setIsEditingProfile(true);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!editName.trim()) return alert('Nama tidak boleh kosong');
+    setSavingProfile(true);
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          name: editName, 
+          phone: editPhone,
+          password: editPassword 
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        login({ user: data.user, token: data.token });
+        alert('Profil berhasil diperbarui!');
+        setIsEditingProfile(false);
+      } else {
+        alert(data.error || 'Terjadi kesalahan');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Terjadi kesalahan koneksi');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   useEffect(() => {
@@ -130,7 +178,7 @@ export default function UserDashboard() {
         <h1 className="text-3xl font-bold text-neutral-900">Dashboard Pesanan Anda</h1>
         <p className="text-neutral-500 mt-2 mb-6">Pantau status pesanan katering terbaru di sini.</p>
         {user && (
-          <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm flex flex-col md:flex-row md:items-center gap-4 text-sm">
+          <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm flex flex-col md:flex-row md:items-center gap-4 text-sm relative pr-12">
             <div className="flex-1">
               <span className="text-neutral-500 block">Nama Lengkap</span>
               <span className="font-semibold text-neutral-900">{user.name}</span>
@@ -147,11 +195,56 @@ export default function UserDashboard() {
               <span className="text-neutral-500 block">Telepon / WA</span>
               <span className="font-semibold text-neutral-900">{user.phone || '-'}</span>
             </div>
+            <button 
+              onClick={handleEditProfileClick} 
+              className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-orange-600 rounded-full hover:bg-orange-50 transition-colors"
+              title="Edit Profil"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Profile Edit Modal */}
+        {isEditingProfile && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+              <button 
+                onClick={() => setIsEditingProfile(false)}
+                className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-bold mb-6">Edit Profil</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Nama Lengkap</label>
+                  <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Telepon / WA</label>
+                  <input type="text" value={editPhone} onChange={e => setEditPhone(e.target.value)} className="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Password Baru (Biarkan kosong jika tetap)</label>
+                  <input type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                </div>
+              </div>
+              
+              <button 
+                onClick={saveProfile}
+                disabled={savingProfile}
+                className="w-full mt-6 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold transition disabled:opacity-50"
+              >
+                {savingProfile ? 'Menyimpan...' : 'Simpan Profil'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Order List */}
         <div className="lg:col-span-2 space-y-4">
           {orders.length === 0 ? (
@@ -159,7 +252,7 @@ export default function UserDashboard() {
               <Package className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
               <p className="text-neutral-500">Anda belum memiliki pesanan.</p>
               <button 
-                onClick={() => navigate('/#menus')}
+                onClick={() => navigate('/menus')}
                 className="mt-6 text-orange-600 font-medium hover:underline"
               >
                 Mulai Memesan

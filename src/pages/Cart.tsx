@@ -34,6 +34,7 @@ export default function Cart() {
       });
       const data = await res.json();
       setCartItems(Array.isArray(data) ? data : []);
+      window.dispatchEvent(new Event('cart-updated'));
     } catch (err) {
       console.error(err);
     } finally {
@@ -156,7 +157,7 @@ export default function Cart() {
         <div className="bg-white p-12 rounded-3xl border border-neutral-200 text-center shadow-sm">
           <p className="text-neutral-500 mb-6 text-lg">Keranjang Anda masih kosong.</p>
           <button 
-            onClick={() => navigate('/#menus')}
+            onClick={() => navigate('/menus')}
             className="bg-orange-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-orange-700 transition"
           >
             Lihat Menu Katering

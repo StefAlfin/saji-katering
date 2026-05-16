@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Star, ShoppingBag, Heart } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 function PageTransition({ children }: { children: React.ReactNode }) {
@@ -19,188 +18,111 @@ function PageTransition({ children }: { children: React.ReactNode }) {
 }
 
 export default function Home() {
-  const [menus, setMenus] = useState<any[]>([]);
   const [testimonials, setTestimonials] = useState<any[]>([]);
-  const [wishlists, setWishlists] = useState<any[]>([]);
-  const { user, token } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('/api/menus')
-      .then(r => r.json())
-      .then(setMenus)
-      .catch(console.error);
-
     fetch('/api/all-reviews')
       .then(r => r.json())
       .then(data => {
-        // Map keys to match existing testimonial format or structure
         const mapped = data.map((d: any) => ({
           id: d.id,
           rating: d.rating,
           content: d.comment,
           user_name: d.user_name
         }));
-        setTestimonials(mapped);
+        setTestimonials(mapped.slice(0, 4));
       })
       .catch(console.error);
-      
-    if (user && token) {
-      fetch('/api/wishlist', { headers: { 'Authorization': `Bearer ${token}` } })
-        .then(r => r.json())
-        .then(setWishlists)
-        .catch(console.error);
-    }
-  }, [user, token]);
-
-  const toggleWishlist = async (menuId: number) => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    try {
-      const res = await fetch('/api/wishlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ menu_id: menuId })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.added) {
-          setWishlists([...wishlists, menus.find(m => m.id === menuId)]);
-        } else {
-          setWishlists(wishlists.filter(w => w.id !== menuId));
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const addToCart = async (menuId: number) => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    if (user.role === 'admin') return; // admins don't order usually
-    
-    try {
-      const res = await fetch('/api/cart', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ menu_id: menuId })
-      });
-      if (res.ok) {
-        alert('Ditambahkan ke keranjang!');
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  }, []);
 
   return (
     <PageTransition>
       {/* Hero Section */}
-      <section className="bg-orange-50 py-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-6xl font-bold text-neutral-900 tracking-tight"
+      <section className="hero-container">
+        <div className="hero-card">
+          <h1 className="hero-title">Sajian <span className="highlight">Elegan</span></h1>
+          <p className="hero-desc">
+            Cita rasa autentik Nusantara dengan sentuhan modern. Kami menghadirkan pengalaman boga premium untuk setiap acara spesial Anda.
+          </p>
+          <button
+            onClick={() => navigate('/menus')}
+            className="hero-btn"
           >
-            Sajian <span className="text-orange-600">Terbaik</span> Untuk Setiap Acara Anda
-          </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mt-6 text-lg text-neutral-600 max-w-2xl mx-auto"
-          >
-            Pesan katering berkualitas, segar, dan lezat dengan mudah. Mulai dari nasi kotak, snack box, hingga prasmanan lengkap.
-          </motion.p>
+            Lihat Menu Kami
+          </button>
         </div>
       </section>
 
-      {/* Menus Section */}
-      <section className="py-20 px-4 bg-white" id="menus">
+      {/* About Section */}
+      <section className="py-24 px-6 bg-white rounded-t-[3rem]">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold">Pilihan Menu Spesial</h2>
-            <p className="mt-4 text-neutral-500">Dibuat dari bahan segar berkualitas tinggi setiap hari.</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32">
+            <div className="relative">
+              <div className="rounded-[8rem] overflow-hidden shadow-2xl aspect-[3/4] bg-neutral-200">
+                <img 
+                  src="https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=2070&auto=format&fit=crop" 
+                  alt="Dapur Saji Katering" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+            <div className="pl-0 lg:pl-12">
+              <h2 className="font-serif text-4xl md:text-5xl text-[var(--color-earth-dark)] mb-8 font-medium">Dedikasi Pada Rasa & <span className="italic">Kualitas</span></h2>
+              <p className="text-neutral-600 mb-6 leading-relaxed text-lg font-light">
+                Berawal dari dapur keluarga pada tahun 2010. Kecintaan kami pada kuliner Indonesia yang kaya rempah membawa Saji Katering menjadi penyedia layanan boga terpercaya.
+              </p>
+              <p className="text-neutral-600 mb-6 leading-relaxed text-lg font-light">
+                Setiap hidangan adalah sebuah dedikasi yang diracik khusus untuk menghangatkan setiap pertemuan. Dari jamuan intim hingga perayaan megah, kualitas rasa kami tetap konsisten.
+              </p>
+              <button 
+                onClick={() => navigate('/menus')}
+                className="mt-4 uppercase tracking-[0.1em] text-xs font-semibold text-orange-600 hover:text-orange-700 underline underline-offset-8 transition-colors"
+                >
+                Pelajari Lebih Lanjut
+              </button>
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {menus.map((menu, i) => (
-              <motion.div 
-                key={menu.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-white rounded-2xl overflow-hidden border border-neutral-100 shadow-sm hover:shadow-md transition-shadow flex flex-col"
-              >
-                <div className="h-48 bg-neutral-200 relative">
-                  {menu.image_url ? (
-                    <img src={menu.image_url} alt={menu.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-neutral-400">No Image</div>
-                  )}
-                  <span className="absolute top-3 left-3 bg-white/90 px-3 py-1 text-xs font-semibold rounded-full text-orange-700">
-                    {menu.category}
-                  </span>
-                </div>
-                <div className="p-5 flex flex-col flex-grow">
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="text-lg font-bold text-neutral-900">{menu.name}</h3>
-                    {user?.role !== 'admin' && (
-                      <button onClick={() => toggleWishlist(menu.id)} className="text-neutral-400 hover:text-red-500 transition-colors">
-                        <Heart className={`w-5 h-5 ${wishlists.some(w => w.id === menu.id) ? 'fill-red-500 text-red-500' : ''}`} />
-                      </button>
-                    )}
-                  </div>
-                  {menu.review_count > 0 && (
-                    <div className="flex items-center gap-1 mb-2">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-semibold text-neutral-700">{Number(menu.avg_rating).toFixed(1)}</span>
-                      <span className="text-xs text-neutral-400">({menu.review_count} ulasan)</span>
-                    </div>
-                  )}
-                  <p className="text-sm text-neutral-500 mt-2 flex-grow">{menu.description}</p>
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-lg font-bold text-orange-600">Rp {menu.price.toLocaleString('id-ID')}</span>
-                    {user?.role !== 'admin' && (
-                      <button 
-                        onClick={() => addToCart(menu.id)}
-                        className="bg-orange-100 text-orange-700 p-2 rounded-full hover:bg-orange-200 transition-colors"
-                        title="Tambah ke Keranjang"
-                      >
-                        <ShoppingBag className="w-5 h-5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+
+          <div className="bg-[var(--color-warm-white)] rounded-[3rem] p-10 md:p-20 text-center card-shadow">
+            <h2 className="font-serif text-3xl md:text-4xl text-[var(--color-earth-dark)] mb-16">Pilar Pelayanan Kami</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+              <div className="flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full border border-neutral-300 flex items-center justify-center text-2xl mb-6 bg-white">🌱</div>
+                <h3 className="font-serif text-2xl font-medium text-[var(--color-earth-dark)] mb-3">Bahan Pilihan</h3>
+                <p className="text-neutral-600 font-light leading-relaxed">Komitmen pada kesegaran paripurna, dipasok dari produsen lokal terbaik setiap pagi.</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full border border-neutral-300 flex items-center justify-center text-2xl mb-6 bg-white">👨‍🍳</div>
+                <h3 className="font-serif text-2xl font-medium text-[var(--color-earth-dark)] mb-3">Maha Karya</h3>
+                <p className="text-neutral-600 font-light leading-relaxed">Diramu oleh koki profesional yang tak kenal kompromi dalam menjaga keaslian rasa.</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full border border-neutral-300 flex items-center justify-center text-2xl mb-6 bg-white">✨</div>
+                <h3 className="font-serif text-2xl font-medium text-[var(--color-earth-dark)] mb-3">Estetika Saji</h3>
+                <p className="text-neutral-600 font-light leading-relaxed">Tak hanya nikmat di lidah, seluruh hidangan kami disempurnakan dengan tatanan yang memanjakan mata.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 px-4 bg-neutral-900 text-white">
+      <section className="py-24 px-6 bg-[var(--color-earth-dark)] text-white">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold">Apa Kata Pelanggan Kami</h2>
+          <div className="text-center mb-16 flex flex-col items-center">
+            <h2 className="font-serif text-4xl mb-6 font-light">Cerita Harmoni Rasa</h2>
+            <button
+              onClick={() => navigate('/reviews')}
+              className="mt-4 uppercase tracking-[0.1em] text-xs font-semibold text-orange-400 hover:text-orange-500 underline underline-offset-8 transition-colors"
+            >
+              Ulasan Selengkapnya
+            </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {testimonials.length === 0 ? (
-              <p className="text-neutral-400 col-span-2 text-center pb-8">Belum ada penilaian dari pelanggan.</p>
+              <p className="text-neutral-400 col-span-2 text-center pb-8 font-light">Belum ada penilaian yang tersimpan.</p>
             ) : (
               testimonials.map((testi, i) => (
                 <motion.div 
@@ -209,15 +131,15 @@ export default function Home() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
-                  className="bg-neutral-800 p-6 rounded-2xl"
+                  className="bg-[#38382e] p-10 rounded-[2rem] flex flex-col h-full"
                 >
-                  <div className="flex gap-1 mb-4 text-yellow-400">
+                  <div className="flex gap-1 mb-6 text-orange-400">
                     {Array.from({ length: testi.rating }).map((_, j) => (
-                      <Star key={j} className="w-5 h-5 fill-current" />
+                      <Star key={j} className="w-4 h-4 fill-current" />
                     ))}
                   </div>
-                  <p className="text-neutral-300 italic mb-4">"{testi.content || 'Tidak ada komentar'}"</p>
-                  <p className="font-semibold text-white">— {testi.user_name || 'Pelanggan'}</p>
+                  <p className="font-serif text-xl italic mb-8 leading-relaxed font-light text-neutral-200 flex-grow">"{testi.content || 'Pengalaman yang sungguh tak terlupakan.'}"</p>
+                  <p className="tracking-wide text-xs uppercase font-semibold text-[#a8a892]">— {testi.user_name || 'Tamu Kehormatan'}</p>
                 </motion.div>
               ))
             )}
@@ -227,3 +149,4 @@ export default function Home() {
     </PageTransition>
   );
 }
+

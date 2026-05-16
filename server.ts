@@ -1,3 +1,4 @@
+import 'express-async-errors';
 import express from 'express';
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
@@ -129,6 +130,20 @@ async function setupDatabase(): Promise<Database> {
     await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)');
   }
 
+  // add image_url to menus if needed
+  try {
+    await db.exec('ALTER TABLE menus ADD COLUMN image_url TEXT');
+  } catch (e) {
+    // Column might already exist
+  }
+
+  // add category to menus if needed
+  try {
+    await db.exec('ALTER TABLE menus ADD COLUMN category TEXT');
+  } catch (e) {
+    // Column might already exist
+  }
+
   // add address to existing orders table if needed
   try {
     await db.exec('ALTER TABLE orders ADD COLUMN address TEXT');
@@ -184,7 +199,54 @@ async function setupDatabase(): Promise<Database> {
       FOREIGN KEY (menu_id) REFERENCES menus(id),
       UNIQUE(user_id, menu_id)
     );
+
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS contact_info (
+      id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      address TEXT,
+      phone TEXT,
+      email TEXT,
+      description TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS contact_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      is_read BOOLEAN DEFAULT 0
+    );
   `);
+
+  // Seed contact info
+  const contactInfoCount = await db.get('SELECT COUNT(*) as count FROM contact_info');
+  if (contactInfoCount.count === 0) {
+    await db.run("INSERT INTO contact_info (address, phone, email, description) VALUES ('Jl. Kuliner Nusantara No. 123, Jakarta Selatan, 12345', '+62 812 3456 7890', 'halo@sajikatering.com', 'Kami selalu siap membantu Anda! Hubungi kami untuk kebutuhan acara Anda.')");
+  }
+
+  // Seed categories if empty
+  const catsCount = await db.get('SELECT COUNT(*) as count FROM categories');
+  if (catsCount.count === 0) {
+    const existingCats = await db.all('SELECT DISTINCT category FROM menus WHERE category IS NOT NULL AND category != ""');
+    if (existingCats.length > 0) {
+      for (const row of existingCats) {
+        await db.run('INSERT INTO categories (name) VALUES (?)', [row.category]);
+      }
+    } else {
+      await db.exec(`
+        INSERT INTO categories (name) VALUES
+        ('Nasi Kotak'),
+        ('Tradisional'),
+        ('Snack'),
+        ('Prasmanan')
+      `);
+    }
+  }
 
   // Seed menus if empty
   const menuCount = await db.get('SELECT COUNT(*) as count FROM menus');
@@ -246,7 +308,71 @@ async function startServer() {
   
   const db = await setupDatabase();
 
+const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
+  Promise.resolve(fn(req, res, next)).catch((err) => {
+    console.error('API Error:', err);
+    res.status(500).json({ error: err.message || 'Internal Server Error' });
+  });
+};
+  
+
   // ----- API ROUTES -----
+
+  // Categories
+  app.get('/api/categories', async (req, res) => {
+    try {
+      const categories = await db.all('SELECT * FROM categories ORDER BY name ASC');
+      res.json(categories);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/categories', authenticateToken, isAdmin, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ error: 'Name is required' });
+      const result = await db.run('INSERT INTO categories (name) VALUES (?)', [name]);
+      res.json({ id: result.lastID, name });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/categories/:id', authenticateToken, isAdmin, async (req, res) => {
+    try {
+      const { name } = req.body;
+      const oldCat = await db.get('SELECT name FROM categories WHERE id = ?', [req.params.id]);
+      if (!oldCat) return res.status(404).json({ error: 'Not found' });
+      
+      await db.run('UPDATE categories SET name = ? WHERE id = ?', [name, req.params.id]);
+      
+      // Update menus category names since it's just a text column
+      await db.run('UPDATE menus SET category = ? WHERE category = ?', [name, oldCat.name]);
+      
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/categories/:id', authenticateToken, isAdmin, async (req, res) => {
+    try {
+      // Find the name of the category
+      const oldCat = await db.get('SELECT name FROM categories WHERE id = ?', [req.params.id]);
+      if (oldCat) {
+        // Option 1: Prevent deletion if menus exist with this category
+        const menuCount = await db.get('SELECT COUNT(*) as count FROM menus WHERE category = ?', [oldCat.name]);
+        if (menuCount.count > 0) {
+          return res.status(400).json({ error: 'Cannot delete category because it is used by existing menus' });
+        }
+      }
+      await db.run('DELETE FROM categories WHERE id = ?', [req.params.id]);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // Auth
   app.post('/api/auth/register', async (req, res) => {
@@ -256,7 +382,11 @@ async function startServer() {
       const result = await db.run('INSERT INTO users (name, username, email, password, phone) VALUES (?, ?, ?, ?, ?)', [name, username, email, hashedPw, phone]);
       res.json({ id: result.lastID, name, username, email, phone });
     } catch (e: any) {
-      if (e.message.includes('UNIQUE constraint failed')) {
+      if (e.message.includes('UNIQUE constraint failed: users.username')) {
+        res.status(400).json({ field: 'username', error: 'Username sudah digunakan' });
+      } else if (e.message.includes('UNIQUE constraint failed: users.email')) {
+        res.status(400).json({ field: 'email', error: 'Email sudah digunakan' });
+      } else if (e.message.includes('UNIQUE constraint failed')) {
         res.status(400).json({ error: 'Username atau Email sudah ada' });
       } else {
         res.status(500).json({ error: e.message });
@@ -267,10 +397,10 @@ async function startServer() {
   app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user) return res.status(401).json({ field: 'username', error: 'Username tidak ditemukan' });
     
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!valid) return res.status(401).json({ field: 'password', error: 'Password salah' });
 
     const token = jwt.sign({ id: user.id, username: user.username, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role } });
@@ -279,6 +409,32 @@ async function startServer() {
   // Current User
   app.get('/api/auth/me', authenticateToken, (req: any, res: any) => {
     res.json(req.user);
+  });
+
+  app.put('/api/auth/me', authenticateToken, async (req: any, res: any) => {
+    try {
+      const { name, phone, password } = req.body;
+      let query = 'UPDATE users SET name = ?, phone = ?';
+      let params = [name, phone];
+
+      if (password) {
+        query += ', password = ?';
+        params.push(await bcrypt.hash(password, 10));
+      }
+
+      query += ' WHERE id = ?';
+      params.push(req.user.id);
+
+      await db.run(query, params);
+
+      const updatedUser = await db.get('SELECT id, name, username, email, phone, role FROM users WHERE id = ?', [req.user.id]);
+      
+      const newToken = jwt.sign({ id: updatedUser.id, username: updatedUser.username, email: updatedUser.email, role: updatedUser.role, name: updatedUser.name }, JWT_SECRET, { expiresIn: '24h' });
+      
+      res.json({ user: updatedUser, token: newToken });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // Menus
@@ -497,14 +653,18 @@ async function startServer() {
 
   // Reviews
   app.get('/api/reviews/menu/:menuId', async (req, res) => {
-    const reviews = await db.all(`
-      SELECT r.*, u.name as user_name 
-      FROM reviews r 
-      JOIN users u ON r.user_id = u.id 
-      WHERE r.menu_id = ?
-      ORDER BY r.created_at DESC
-    `, [req.params.menuId]);
-    res.json(reviews);
+    try {
+      const reviews = await db.all(`
+        SELECT r.*, u.name as user_name 
+        FROM reviews r 
+        JOIN users u ON r.user_id = u.id 
+        WHERE r.menu_id = ?
+        ORDER BY r.created_at DESC
+      `, [req.params.menuId]);
+      res.json(reviews);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   app.post('/api/reviews', authenticateToken, async (req: any, res: any) => {
@@ -594,6 +754,55 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Contacts API
+  app.get('/api/contact-info', async (req, res) => {
+    try {
+      const info = await db.get('SELECT * FROM contact_info WHERE id = 1');
+      res.json(info || {});
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/contact-info', authenticateToken, isAdmin, async (req, res) => {
+    try {
+      const { address, phone, email, description } = req.body;
+      await db.run('UPDATE contact_info SET address = ?, phone = ?, email = ?, description = ? WHERE id = 1', [address, phone, email, description]);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/contact-messages', authenticateToken, isAdmin, async (req, res) => {
+    try {
+      const messages = await db.all('SELECT * FROM contact_messages ORDER BY created_at DESC');
+      res.json(messages);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/contact-messages', async (req, res) => {
+    try {
+      const { name, email, message } = req.body;
+      if (!name || !email || !message) return res.status(400).json({ error: 'All fields are required' });
+      await db.run('INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)', [name, email, message]);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/contact-messages/:id/read', authenticateToken, isAdmin, async (req, res) => {
+    try {
+      await db.run('UPDATE contact_messages SET is_read = 1 WHERE id = ?', [req.params.id]);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // --- VITE MIDDLEWARE ---
   if (!process.env.VERCEL) {
     if (process.env.NODE_ENV !== 'production') {
@@ -612,9 +821,17 @@ async function startServer() {
     }
   }
 
+  // Global error handler to catch any unhandled middleware errors (like multer) and return JSON
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('Express Global Error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message || 'Internal Server Error' });
+    }
+  });
+
   if (!process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+    app.listen(3000, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:3000`);
     });
   }
   

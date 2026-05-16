@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Utensils, LayoutDashboard, Settings } from 'lucide-react';
+import { Users, Utensils, LayoutDashboard, Settings, Tags, Edit, Trash, MessageSquare, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 function PageTransition({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,9 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [menus, setMenus] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [contactMessages, setContactMessages] = useState<any[]>([]);
+  const [contactInfo, setContactInfo] = useState({ address: '', phone: '', email: '', description: '' });
   const [loading, setLoading] = useState(true);
   const { user, token } = useAuth();
   const navigate = useNavigate();
@@ -31,18 +34,36 @@ export default function AdminDashboard() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   const [editingMenuId, setEditingMenuId] = useState<number | null>(null);
+  
+  const [newCatName, setNewCatName] = useState('');
+  const [editingCatId, setEditingCatId] = useState<number | null>(null);
+  const [editCatName, setEditCatName] = useState('');
+
+  const [savingContact, setSavingContact] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [oRes, uRes, mRes] = await Promise.all([
+      const [oRes, uRes, mRes, cRes, cmRes, ciRes] = await Promise.all([
         fetch('/api/orders', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/menus')
+        fetch('/api/menus'),
+        fetch('/api/categories'),
+        fetch('/api/contact-messages', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/contact-info')
       ]);
 
       setOrders(await oRes.json());
       setUsers(await uRes.json());
       setMenus(await mRes.json());
+      setCategories(await cRes.json());
+      setContactMessages(await cmRes.json());
+      const ci = await ciRes.json();
+      setContactInfo({ 
+        address: ci.address || '', 
+        phone: ci.phone || '', 
+        email: ci.email || '', 
+        description: ci.description || '' 
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -161,6 +182,99 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: newCatName })
+      });
+      if (res.ok) {
+        setNewCatName('');
+        fetchData();
+      } else {
+        alert('Gagal menambah kategori');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCatId) return;
+    try {
+      const res = await fetch(`/api/categories/${editingCatId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: editCatName })
+      });
+      if (res.ok) {
+        setEditingCatId(null);
+        setEditCatName('');
+        fetchData();
+      } else {
+        alert('Gagal mengubah kategori');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    if (!window.confirm('Hapus kategori ini?')) return;
+    try {
+      const res = await fetch(`/api/categories/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || 'Gagal menghapus kategori');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSaveContactInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingContact(true);
+    try {
+      const res = await fetch('/api/contact-info', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(contactInfo)
+      });
+      if (res.ok) {
+        alert('Info kontak berhasil disimpan');
+      } else {
+        alert('Gagal menyimpan info kontak');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  const markMessageAsRead = async (id: number) => {
+    try {
+      const res = await fetch(`/api/contact-messages/${id}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center flex-grow">Loading Admin Panel...</div>;
 
   return (
@@ -173,7 +287,10 @@ export default function AdminDashboard() {
             {[
               { id: 'orders', label: 'Kelola Pesanan', icon: <LayoutDashboard className="w-5 h-5"/> },
               { id: 'menus', label: 'Kelola Menu', icon: <Utensils className="w-5 h-5"/> },
+              { id: 'categories', label: 'Kelola Kategori', icon: <Tags className="w-5 h-5"/> },
               { id: 'users', label: 'Data Pelanggan', icon: <Users className="w-5 h-5"/> },
+              { id: 'contact_info', label: 'Info Kontak', icon: <MapPin className="w-5 h-5"/> },
+              { id: 'messages', label: 'Pesan Masuk', icon: <MessageSquare className="w-5 h-5"/> },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -264,18 +381,33 @@ export default function AdminDashboard() {
                       value={newMenu.name} onChange={e => setNewMenu({...newMenu, name: e.target.value})} />
                     <input type="number" placeholder="Harga (Rp)" required className="p-2 border rounded-xl"
                       value={newMenu.price} onChange={e => setNewMenu({...newMenu, price: e.target.value})} />
-                    <input type="text" placeholder="Kategori (cth: Nasi Kotak)" required className="p-2 border rounded-xl"
-                      value={newMenu.category} onChange={e => setNewMenu({...newMenu, category: e.target.value})} />
-                    <input type="file" accept="image/*" className="p-2 border rounded-xl bg-white file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
-                      onChange={e => {
-                        setImageFile(e.target.files ? e.target.files[0] : null);
-                        if (e.target.files && e.target.files.length > 0) setImageUrl('');
-                      }} />
-                    <input type="text" placeholder="Atau Link URL Gambar" className="p-2 border rounded-xl"
-                      value={imageUrl} onChange={e => {
-                        setImageUrl(e.target.value);
-                        if (e.target.value) setImageFile(null);
-                      }} />
+                    <select
+                      className="p-2 border rounded-xl bg-white"
+                      value={newMenu.category}
+                      onChange={e => setNewMenu({...newMenu, category: e.target.value})}
+                      required
+                    >
+                      <option value="" disabled>Pilih Kategori</option>
+                      {categories.map((c: any) => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-neutral-700">Upload Gambar Menu</label>
+                      <input type="file" accept="image/*" className="p-2 border rounded-xl bg-white file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+                        onChange={e => {
+                          setImageFile(e.target.files ? e.target.files[0] : null);
+                          if (e.target.files && e.target.files.length > 0) setImageUrl('');
+                        }} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-neutral-700">Atau Gunakan Link URL</label>
+                      <input type="text" placeholder="https://..." className="p-2 border rounded-xl"
+                        value={imageUrl} onChange={e => {
+                          setImageUrl(e.target.value);
+                          if (e.target.value) setImageFile(null);
+                        }} />
+                    </div>
                     
                     {/* Image Preview */}
                     {(imageUrl || imageFile) && (
@@ -328,6 +460,94 @@ export default function AdminDashboard() {
               </motion.div>
             )}
 
+            {activeTab === 'categories' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <h3 className="text-2xl font-bold mb-6">Kelola Kategori Menu</h3>
+                
+                <div className="mb-8 p-6 bg-orange-50 rounded-2xl border border-orange-100">
+                  <h4 className="font-bold text-lg mb-4">Tambah Kategori Baru</h4>
+                  <form onSubmit={handleCreateCategory} className="flex gap-4">
+                    <input 
+                      type="text" 
+                      placeholder="Nama Kategori (cth: Paket Hemat)" 
+                      required 
+                      className="flex-1 p-2 border rounded-xl"
+                      value={newCatName} 
+                      onChange={e => setNewCatName(e.target.value)} 
+                    />
+                    <button type="submit" className="bg-orange-600 text-white font-semibold py-2 px-6 rounded-xl hover:bg-orange-700 whitespace-nowrap">
+                      Tambah
+                    </button>
+                  </form>
+                </div>
+
+                <div className="bg-white border text-left border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-neutral-50">
+                      <tr className="border-b border-neutral-200">
+                        <th className="py-3 px-4 font-semibold text-neutral-600">ID</th>
+                        <th className="py-3 px-4 font-semibold text-neutral-600 w-full">Nama Kategori</th>
+                        <th className="py-3 px-4 font-semibold text-neutral-600 text-center">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categories.length === 0 ? (
+                        <tr><td colSpan={3} className="text-center p-6 text-neutral-500">Belum ada kategori.</td></tr>
+                      ) : (
+                        categories.map(cat => (
+                          <tr key={cat.id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+                            <td className="py-3 px-4 font-medium text-neutral-500">#{cat.id}</td>
+                            <td className="py-3 px-4">
+                              {editingCatId === cat.id ? (
+                                <form onSubmit={handleUpdateCategory} className="flex gap-2 w-full max-w-sm">
+                                  <input 
+                                    type="text" 
+                                    value={editCatName} 
+                                    onChange={e => setEditCatName(e.target.value)} 
+                                    className="p-1.5 border rounded-lg flex-1"
+                                    required 
+                                    autoFocus
+                                  />
+                                  <button type="submit" className="text-sm bg-orange-600 text-white px-3 py-1.5 rounded-lg flex gap-1 items-center hover:bg-orange-700">
+                                    Simpan
+                                  </button>
+                                  <button type="button" onClick={() => setEditingCatId(null)} className="text-sm bg-neutral-200 text-neutral-700 px-3 py-1.5 rounded-lg hover:bg-neutral-300">
+                                    Batal
+                                  </button>
+                                </form>
+                              ) : (
+                                <span className="font-medium text-neutral-800">{cat.name}</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              {editingCatId !== cat.id && (
+                                <div className="flex justify-center gap-3">
+                                  <button 
+                                    onClick={() => { setEditingCatId(cat.id); setEditCatName(cat.name); }}
+                                    className="text-blue-500 hover:text-blue-700 transition-colors"
+                                    title="Edit Kategori"
+                                  >
+                                    <Edit className="w-5 h-5"/>
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteCategory(cat.id)}
+                                    className="text-red-500 hover:text-red-700 transition-colors"
+                                    title="Hapus Kategori"
+                                  >
+                                    <Trash className="w-5 h-5"/>
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )}
+
             {activeTab === 'users' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <h3 className="text-2xl font-bold mb-6">Data Pelanggan</h3>
@@ -361,6 +581,109 @@ export default function AdminDashboard() {
                               >
                                 Hapus
                               </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'contact_info' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <h3 className="text-2xl font-bold mb-6">Edit Info Kontak</h3>
+                <form onSubmit={handleSaveContactInfo} className="max-w-2xl space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Alamat</label>
+                    <textarea 
+                      value={contactInfo.address}
+                      onChange={e => setContactInfo({...contactInfo, address: e.target.value})}
+                      className="w-full px-4 py-3 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Telepon / WhatsApp</label>
+                    <input 
+                      type="text" 
+                      value={contactInfo.phone}
+                      onChange={e => setContactInfo({...contactInfo, phone: e.target.value})}
+                      className="w-full px-4 py-3 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Email</label>
+                    <input 
+                      type="email" 
+                      value={contactInfo.email}
+                      onChange={e => setContactInfo({...contactInfo, email: e.target.value})}
+                      className="w-full px-4 py-3 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Deskripsi Pendek</label>
+                    <textarea 
+                      value={contactInfo.description}
+                      onChange={e => setContactInfo({...contactInfo, description: e.target.value})}
+                      className="w-full px-4 py-3 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      rows={3}
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={savingContact}
+                    className="bg-orange-600 text-white px-8 py-3 rounded-xl hover:bg-orange-700 transition font-bold disabled:opacity-50"
+                  >
+                    {savingContact ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  </button>
+                </form>
+              </motion.div>
+            )}
+
+            {activeTab === 'messages' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <h3 className="text-2xl font-bold mb-6">Pesan Masuk (Form Kontak)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-neutral-200 text-neutral-500">
+                        <th className="py-3 px-4 w-1/4">Dari</th>
+                        <th className="py-3 px-4 w-1/4">Tanggal</th>
+                        <th className="py-3 px-4 w-1/2">Pesan</th>
+                        <th className="py-3 px-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contactMessages.length === 0 ? (
+                        <tr><td colSpan={4} className="text-center p-6 text-neutral-500">Belum ada pesan.</td></tr>
+                      ) : (
+                        contactMessages.map((msg: any) => (
+                          <tr key={msg.id} className={`border-b border-neutral-100 ${msg.is_read ? 'bg-white' : 'bg-orange-50 font-medium'}`}>
+                            <td className="py-4 px-4">
+                              <div className="font-semibold text-neutral-900">{msg.name}</div>
+                              <div className="text-sm text-neutral-500">{msg.email}</div>
+                            </td>
+                            <td className="py-4 px-4 text-sm text-neutral-500 whitespace-nowrap">
+                              {new Date(msg.created_at).toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-4 px-4">
+                              <p className="text-sm text-neutral-700 whitespace-pre-wrap">{msg.message}</p>
+                            </td>
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              {!msg.is_read ? (
+                                <button 
+                                  onClick={() => markMessageAsRead(msg.id)}
+                                  className="text-orange-600 hover:text-orange-800 text-sm font-semibold transition"
+                                >
+                                  Tandai Dibaca
+                                </button>
+                              ) : (
+                                <span className="text-green-600 text-sm flex items-center gap-1">
+                                  <span className="w-2 h-2 rounded-full bg-green-500"></span> Dibaca
+                                </span>
+                              )}
                             </td>
                           </tr>
                         ))
