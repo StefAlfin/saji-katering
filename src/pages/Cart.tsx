@@ -27,78 +27,63 @@ export default function Cart() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
 
-  const fetchCart = async () => {
+  const fetchCart = () => {
     try {
-      const res = await fetch('/api/cart', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setCartItems(Array.isArray(data) ? data : []);
+      const cart = JSON.parse(localStorage.getItem('saji_cart') || '[]');
+      setCartItems(cart);
       window.dispatchEvent(new Event('cart-updated'));
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
+      setCartItems([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
     fetchCart();
-  }, [user]);
+  }, []);
 
-  const updateQuantity = async (id: number, currentQty: number, change: number) => {
+  const updateQuantity = (id: number, currentQty: number, change: number) => {
     const newQty = currentQty + change;
     if (newQty < 1) return;
 
     try {
-      await fetch(`/api/cart/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ quantity: newQty })
-      });
-      fetchCart();
-    } catch (err) {
-      console.error(err);
+      const cart = JSON.parse(localStorage.getItem('saji_cart') || '[]');
+      const item = cart.find((i: any) => i.id === id);
+      if (item) {
+        item.quantity = newQty;
+        localStorage.setItem('saji_cart', JSON.stringify(cart));
+        fetchCart();
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const removeItem = async (id: number) => {
+  const removeItem = (id: number) => {
     try {
-      await fetch(`/api/cart/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      let cart = JSON.parse(localStorage.getItem('saji_cart') || '[]');
+      cart = cart.filter((i: any) => i.id !== id);
+      localStorage.setItem('saji_cart', JSON.stringify(cart));
       fetchCart();
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const clearCart = async () => {
+  const clearCart = () => {
     if (!window.confirm('Apakah Anda yakin ingin mengosongkan keranjang?')) return;
-    try {
-      await fetch('/api/cart', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      fetchCart();
-    } catch (err) {
-      console.error(err);
-    }
+    localStorage.removeItem('saji_cart');
+    fetchCart();
   };
 
   const handleCheckout = async () => {
+    if (!user) {
+      alert('Silahkan login terlebih dahulu untuk membuat pesanan.');
+      navigate('/login');
+      return;
+    }
     if (cartItems.length === 0) return;
     if (!address.trim()) {
       alert('Tolong masukkan alamat pengiriman.');
@@ -116,10 +101,12 @@ export default function Cart() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ address, event_date: eventDate })
+        body: JSON.stringify({ address, event_date: eventDate, items: cartItems })
       });
       if (res.ok) {
         alert('Pesanan berhasil dibuat!');
+        localStorage.removeItem('saji_cart');
+        window.dispatchEvent(new Event('cart-updated'));
         navigate('/dashboard');
       } else {
         const error = await res.json();

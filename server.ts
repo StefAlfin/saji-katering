@@ -505,51 +505,12 @@ const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
     }
   });
 
-  // Cart
-  app.get('/api/cart', authenticateToken, async (req: any, res: any) => {
-    const cart = await db.all(`
-      SELECT c.id, c.quantity, m.id as menu_id, m.name, m.price, m.image_url 
-      FROM cart c
-      JOIN menus m ON c.menu_id = m.id
-      WHERE c.user_id = ?
-    `, [req.user.id]);
-    res.json(cart);
-  });
 
-  app.post('/api/cart', authenticateToken, async (req: any, res: any) => {
-    const { menu_id } = req.body;
-    const user_id = req.user.id;
-    
-    // Check if exists
-    const existing = await db.get('SELECT * FROM cart WHERE user_id = ? AND menu_id = ?', [user_id, menu_id]);
-    if (existing) {
-      await db.run('UPDATE cart SET quantity = quantity + 1 WHERE id = ?', [existing.id]);
-    } else {
-      await db.run('INSERT INTO cart (user_id, menu_id, quantity) VALUES (?, ?, ?)', [user_id, menu_id, 1]);
-    }
-    res.json({ success: true });
-  });
-
-  app.put('/api/cart/:id', authenticateToken, async (req: any, res: any) => {
-    const { quantity } = req.body;
-    await db.run('UPDATE cart SET quantity = ? WHERE id = ? AND user_id = ?', [quantity, req.params.id, req.user.id]);
-    res.json({ success: true });
-  });
-
-  app.delete('/api/cart/:id', authenticateToken, async (req: any, res: any) => {
-    await db.run('DELETE FROM cart WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
-    res.json({ success: true });
-  });
-
-  app.delete('/api/cart', authenticateToken, async (req: any, res: any) => {
-    await db.run('DELETE FROM cart WHERE user_id = ?', [req.user.id]);
-    res.json({ success: true });
-  });
 
   // Orders
   app.post('/api/orders', authenticateToken, async (req: any, res: any) => {
     const user_id = req.user.id;
-    const { address, event_date } = req.body;
+    const { address, event_date, items } = req.body;
     
     if (!address) {
       return res.status(400).json({ error: 'Address is required' });
@@ -557,22 +518,33 @@ const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
     if (!event_date) {
       return res.status(400).json({ error: 'Event date is required' });
     }
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' });
+    }
     
-    // Get cart items
-    const cartItems = await db.all('SELECT c.*, m.price FROM cart c JOIN menus m ON c.menu_id = m.id WHERE c.user_id = ?', [user_id]);
-    if (cartItems.length === 0) return res.status(400).json({ error: 'Cart is empty' });
+    // Verify prices and menu existences
+    let totalPrice = 0;
+    const validItems = [];
     
-    const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    for (const item of items) {
+       const menu = await db.get('SELECT price FROM menus WHERE id = ?', [item.menu_id]);
+       if (!menu) {
+         return res.status(400).json({ error: `Menu item with id ${item.menu_id} not found` });
+       }
+       const quantity = parseInt(item.quantity) || 1;
+       totalPrice += (menu.price * quantity);
+       validItems.push({ menu_id: item.menu_id, quantity, price: menu.price });
+    }
     
     const orderResult = await db.run('INSERT INTO orders (user_id, total_price, address, event_date) VALUES (?, ?, ?, ?)', [user_id, totalPrice, address, event_date]);
     const orderId = orderResult.lastID;
     
-    for (const item of cartItems) {
+    for (const item of validItems) {
       await db.run('INSERT INTO order_items (order_id, menu_id, quantity, price) VALUES (?, ?, ?, ?)', 
         [orderId, item.menu_id, item.quantity, item.price]);
     }
     
-    await db.run('DELETE FROM cart WHERE user_id = ?', [user_id]);
+    // We no longer rely on the clear cart from db here, as it's purely localStorage now
     res.json({ id: orderId, message: 'Order placed successfully' });
   });
 

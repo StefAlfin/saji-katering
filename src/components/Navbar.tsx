@@ -31,28 +31,24 @@ export default function Navbar() {
   };
 
   const updateCartCount = () => {
-    if (user?.role !== 'user' || !token) return;
-    fetch('/api/cart', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(data => {
-      if(Array.isArray(data)) {
-        setCartCount(data.reduce((acc, curr) => acc + curr.quantity, 0));
-      }
-    })
-    .catch(console.error);
+    if (user && user.role === 'admin') return;
+    try {
+      const cart = JSON.parse(localStorage.getItem('saji_cart') || '[]');
+      setCartCount(cart.reduce((acc: number, curr: any) => acc + curr.quantity, 0));
+    } catch (e) {
+      console.error(e);
+      setCartCount(0);
+    }
   };
 
   useEffect(() => {
     updateCartCount();
     window.addEventListener('cart-updated', updateCartCount);
-    const int = setInterval(updateCartCount, 5000); // keep poll as fallback
+    // Removed polling since localStorage emits event on other tabs and we just update explicitly here
     return () => {
       window.removeEventListener('cart-updated', updateCartCount);
-      clearInterval(int);
     };
-  }, [user, token]);
+  }, [user]);
 
   const handleLogout = () => {
     logout();

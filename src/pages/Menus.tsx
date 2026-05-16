@@ -84,26 +84,29 @@ export default function Menus() {
     }
   };
 
-  const addToCart = async (menuId: number) => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    if (user.role === 'admin') return; 
+  const addToCart = (menu: any) => {
+    if (user?.role === 'admin') return; 
     
     try {
-      const res = await fetch('/api/cart', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ menu_id: menuId })
-      });
-      if (res.ok) {
-        alert('Ditambahkan ke keranjang!');
-        window.dispatchEvent(new Event('cart-updated'));
+      const existingCart = JSON.parse(localStorage.getItem('saji_cart') || '[]');
+      const existingItem = existingCart.find((item: any) => item.menu_id === menu.id);
+      
+      if (existingItem) {
+        existingItem.quantity += 1;
+      } else {
+        existingCart.push({
+          id: Date.now(), // unique id for cart item, optional but matches previous cart item id
+          menu_id: menu.id,
+          name: menu.name,
+          price: menu.price,
+          image_url: menu.image_url,
+          quantity: 1
+        });
       }
+      
+      localStorage.setItem('saji_cart', JSON.stringify(existingCart));
+      alert('Ditambahkan ke keranjang!');
+      window.dispatchEvent(new Event('cart-updated'));
     } catch (err) {
       console.error(err);
     }
@@ -184,7 +187,7 @@ export default function Menus() {
                   <span className="text-lg font-bold text-orange-600">Rp {menu.price.toLocaleString('id-ID')}</span>
                   {user?.role !== 'admin' && (
                     <button 
-                      onClick={(e) => { e.stopPropagation(); addToCart(menu.id); }}
+                      onClick={(e) => { e.stopPropagation(); addToCart(menu); }}
                       className="bg-orange-100 text-orange-700 p-2 rounded-full hover:bg-orange-200 transition-colors"
                       title="Tambah ke Keranjang"
                     >
