@@ -41,6 +41,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="hero-container">
         <div className="hero-card">
+          <p className="uppercase tracking-[0.2em] font-semibold text-xs mb-6 text-yellow-400 drop-shadow-md">Selamat Datang di Saji Katering</p>
           <h1 className="hero-title">Sajian <span className="highlight">Elegan</span></h1>
           <p className="hero-desc">
             Cita rasa autentik Nusantara dengan sentuhan modern. Kami menghadirkan pengalaman boga premium untuk setiap acara spesial Anda.

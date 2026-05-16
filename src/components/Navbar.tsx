@@ -215,7 +215,7 @@ export default function Navbar() {
                       className="flex items-center justify-center gap-3 py-3 text-[#5A5A40] border border-[#5A5A40] rounded-full mt-6 hover:bg-[#5A5A40] hover:text-white transition uppercase tracking-widest text-[10px] font-bold"
                     >
                       <LogOut className="w-4 h-4 flex-shrink-0" />
-                      <span>Masuk Keluar</span>
+                      <span>Keluar</span>
                     </button>
                   </div>
                 ) : (
