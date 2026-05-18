@@ -9,16 +9,20 @@ export default function Menus() {
   const [wishlists, setWishlists] = useState<any[]>([]);
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('search')?.toLowerCase() || '';
+  const [categoryFilter, setCategoryFilter] = useState('');
+
+  const categories = Array.from(new Set(menus.map(m => m.category).filter(Boolean)));
 
   const filteredMenus = menus.filter(menu => {
-    if (!searchQuery) return true;
-    return (
+    const matchSearch = !searchQuery || (
       menu.name?.toLowerCase().includes(searchQuery) ||
       menu.description?.toLowerCase().includes(searchQuery) ||
       menu.category?.toLowerCase().includes(searchQuery)
     );
+    const matchCategory = !categoryFilter || menu.category === categoryFilter;
+    return matchSearch && matchCategory;
   });
 
   const [selectedMenu, setSelectedMenu] = useState<any | null>(null);
@@ -121,13 +125,40 @@ export default function Menus() {
       className="flex flex-col flex-grow py-12 px-4 bg-white"
     >
       <div className="max-w-7xl mx-auto w-full">
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <h2 className="text-3xl font-bold">
-            {searchQuery ? `Hasil Pencarian: "${searchQuery}"` : 'Pilihan Menu Spesial'}
+            Pilihan Menu Spesial
           </h2>
           <p className="mt-4 text-neutral-500">
-            {searchQuery ? `${filteredMenus.length} menu ditemukan` : 'Dibuat dari bahan segar berkualitas tinggi setiap hari.'}
+            Dibuat dari bahan segar berkualitas tinggi setiap hari.
           </p>
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+          <input
+            type="text"
+            placeholder="Cari nama menu atau deskripsi..."
+            value={searchQuery}
+            onChange={(e) => setSearchParams(e.target.value ? { search: e.target.value } : {})}
+            className="border border-neutral-300 rounded-full px-6 py-3 w-full md:w-1/3 focus:outline-none focus:border-orange-500 font-light"
+          />
+          <div className="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-2">
+            <button 
+              onClick={() => setCategoryFilter('')} 
+              className={`flex-shrink-0 px-6 py-2 rounded-full border transition-colors text-sm ${!categoryFilter ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-neutral-600 border-neutral-300 hover:border-orange-600'}`}
+            >
+              Semua Kategori
+            </button>
+            {categories.map((c: any) => (
+              <button 
+                key={c}
+                onClick={() => setCategoryFilter(c)}
+                className={`flex-shrink-0 px-6 py-2 rounded-full border transition-colors text-sm ${categoryFilter === c ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-neutral-600 border-neutral-300 hover:border-orange-600'}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
         
         {filteredMenus.length === 0 ? (
@@ -141,64 +172,93 @@ export default function Menus() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {filteredMenus.map((menu, i) => (
-              <motion.div 
-                key={menu.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-white rounded-2xl overflow-hidden border border-neutral-100 shadow-sm hover:shadow-md transition-all flex flex-col cursor-pointer hover:-translate-y-1"
-                onClick={() => openDetails(menu)}
-              >
-              <div className="h-48 bg-neutral-200 relative">
-                {menu.image_url ? (
-                  <img src={menu.image_url} alt={menu.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-neutral-400">No Image</div>
-                )}
-                <span className="absolute top-3 left-3 bg-white/90 px-3 py-1 text-xs font-semibold rounded-full text-orange-700">
-                  {menu.category}
-                </span>
-              </div>
-              <div className="p-5 flex flex-col flex-grow">
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className="text-lg font-bold text-neutral-900 line-clamp-1">{menu.name}</h3>
-                  {user?.role !== 'admin' && (
-                    <motion.button 
-                      whileTap={{ scale: 0.8 }}
-                      onClick={(e) => { e.stopPropagation(); toggleWishlist(menu.id); }} 
-                      className="text-neutral-400 hover:text-red-500 transition-colors flex-shrink-0 ml-2"
+          <div className="bg-white rounded-3xl overflow-hidden card-shadow mt-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="bg-orange-600 text-white text-sm uppercase tracking-wider font-semibold">
+                    <th className="px-6 py-4 font-medium">Menu</th>
+                    <th className="px-6 py-4 font-medium">Kategori</th>
+                    <th className="px-6 py-4 font-medium">Rating</th>
+                    <th className="px-6 py-4 font-medium">Harga</th>
+                    <th className="px-6 py-4 font-medium text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 p-2">
+                  {filteredMenus.map((menu, i) => (
+                    <motion.tr 
+                      key={menu.id} 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="hover:bg-neutral-50 transition-colors"
                     >
-                      <Heart className={`w-5 h-5 transition-colors ${wishlists.some(w => w.id === menu.id) ? 'fill-red-500 text-red-500' : ''}`} />
-                    </motion.button>
-                  )}
-                </div>
-                {menu.review_count > 0 && (
-                  <div className="flex items-center gap-1 mb-2">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm font-semibold text-neutral-700">{Number(menu.avg_rating).toFixed(1)}</span>
-                    <span className="text-xs text-neutral-400">({menu.review_count} ulasan)</span>
-                  </div>
-                )}
-                <p className="text-sm text-neutral-500 mt-2 flex-grow line-clamp-2">{menu.description}</p>
-                <div className="mt-4 flex items-center justify-between border-t border-neutral-50 pt-4">
-                  <span className="text-lg font-bold text-orange-600">Rp {menu.price.toLocaleString('id-ID')}</span>
-                  {user?.role !== 'admin' && (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); addToCart(menu); }}
-                      className="bg-orange-100 text-orange-700 p-2 rounded-full hover:bg-orange-200 transition-colors"
-                      title="Tambah ke Keranjang"
-                    >
-                      <ShoppingBag className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-4">
+                          {menu.image_url ? (
+                            <img src={menu.image_url} alt={menu.name} className="w-16 h-16 rounded-xl object-cover bg-neutral-200" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xs text-neutral-400">No Image</div>
+                          )}
+                          <div>
+                            <p className="font-serif text-lg font-medium text-neutral-900">{menu.name}</p>
+                            <p className="text-sm font-light text-neutral-500 line-clamp-1 max-w-xs">{menu.description}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <span className="bg-orange-50 text-orange-700 text-xs px-3 py-1 rounded-full border border-orange-100 font-medium">
+                          {menu.category || 'Reguler'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5">
+                        {menu.review_count > 0 ? (
+                          <div className="flex items-center gap-1">
+                             <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                             <span className="text-sm font-semibold text-neutral-700">{Number(menu.avg_rating).toFixed(1)}</span>
+                             <span className="text-xs text-neutral-400 ml-1">({menu.review_count})</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-neutral-400">Belum ada rating</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-5">
+                        <p className="font-semibold text-orange-600 whitespace-nowrap">Rp {menu.price.toLocaleString('id-ID')}</p>
+                      </td>
+                      <td className="px-6 py-5">
+                         <div className="flex items-center justify-center gap-2">
+                           {user?.role !== 'admin' && (
+                             <>
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); toggleWishlist(menu.id); }} 
+                                 className="text-neutral-400 hover:text-red-500 transition-colors p-2 bg-white rounded-full border shadow-sm"
+                                 title="Wishlist"
+                               >
+                                 <Heart className={`w-4 h-4 transition-colors ${wishlists.some(w => w.id === menu.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                               </button>
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); addToCart(menu); }}
+                                 className="bg-orange-100 text-orange-700 p-2 rounded-full hover:bg-orange-200 transition-colors border shadow-sm"
+                                 title="Tambah ke Keranjang"
+                               >
+                                 <ShoppingBag className="w-4 h-4" />
+                               </button>
+                             </>
+                           )}
+                           <button 
+                              onClick={() => openDetails(menu)}
+                              className="text-xs uppercase tracking-wider bg-neutral-900 hover:bg-black text-white transition py-2 px-4 rounded-full font-semibold whitespace-nowrap shadow-sm"
+                           >
+                              Detail
+                           </button>
+                         </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
 

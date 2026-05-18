@@ -69,19 +69,6 @@ export default function Navbar() {
             <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
           </Link>
           
-          <form onSubmit={handleSearch} className="flex-1 max-w-md mx-4 relative hidden md:block">
-            <input
-              type="text"
-              placeholder="Cari preferensi..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/70 border border-neutral-200 rounded-full py-2.5 pl-5 pr-12 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-olive)] transition-all font-light placeholder:text-neutral-400"
-            />
-            <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[var(--color-olive)] transition-colors">
-              <Search className="w-4 h-4" />
-            </button>
-          </form>
-
           <div className="flex items-center gap-3 sm:gap-6">
             <Link to="/" className="uppercase tracking-[0.1em] text-[10px] font-semibold text-neutral-500 hover:text-[var(--color-olive)] transition-colors hidden lg:block">Beranda</Link>
             <Link to="/menus" className="uppercase tracking-[0.1em] text-[10px] font-semibold text-neutral-500 hover:text-[var(--color-olive)] transition-colors hidden lg:block">Menu</Link>
@@ -170,19 +157,6 @@ export default function Navbar() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed top-20 right-0 bottom-0 w-72 bg-[var(--color-warm-white)] z-40 shadow-2xl lg:hidden flex flex-col p-6 border-l border-neutral-200/50"
             >
-              <form onSubmit={handleSearch} className="relative mb-8 md:hidden">
-                <input
-                  type="text"
-                  placeholder="Cari preferensi..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white border border-neutral-200 rounded-full py-3.5 pl-5 pr-12 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-olive)] transition-all font-light placeholder:text-neutral-400"
-                />
-                <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[var(--color-olive)] transition-colors">
-                  <Search className="w-4 h-4" />
-                </button>
-              </form>
-
               <div className="flex flex-col gap-6 font-medium text-neutral-600 uppercase tracking-widest text-[11px] mt-4">
                 <Link to="/" className="hover:text-[var(--color-olive)] transition-colors">Beranda</Link>
                 <Link to="/menus" className="hover:text-[var(--color-olive)] transition-colors">Menu</Link>

@@ -19,6 +19,9 @@ function PageTransition({ children }: { children: React.ReactNode }) {
 
 export default function Home() {
   const [testimonials, setTestimonials] = useState<any[]>([]);
+  const [menus, setMenus] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,7 +37,18 @@ export default function Home() {
         setTestimonials(mapped.slice(0, 4));
       })
       .catch(console.error);
+
+    fetch('/api/menus')
+      .then(r => r.json())
+      .then(setMenus)
+      .catch(console.error);
   }, []);
+
+  const filteredMenus = menus.filter(menu => {
+    const matchSearch = menu.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        menu.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchSearch;
+  });
 
   return (
     <PageTransition>
@@ -104,6 +118,60 @@ export default function Home() {
                 <p className="text-neutral-600 font-light leading-relaxed">Tak hanya nikmat di lidah, seluruh hidangan kami disempurnakan dengan tatanan yang memanjakan mata.</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Menus Showcase Section */}
+      <section className="py-24 px-6 bg-[var(--color-warm-white)]">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="font-serif text-3xl md:text-4xl text-[var(--color-earth-dark)] mb-4">Eksplorasi Menu Kami</h2>
+            <p className="text-neutral-600 font-light max-w-2xl mx-auto">Sajian hangat dan nikmat untuk menyempurnakan hari istimewa Anda.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredMenus.slice(0, 4).map((menu, i) => (
+              <motion.div 
+                key={menu.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-white rounded-2xl overflow-hidden border border-neutral-100 shadow-sm hover:shadow-md transition-all flex flex-col cursor-pointer hover:-translate-y-1"
+                onClick={() => navigate(`/menus?search=${encodeURIComponent(menu.name)}`)}
+              >
+                <div className="h-40 bg-neutral-200 relative">
+                  {menu.image_url ? (
+                    <img src={menu.image_url} alt={menu.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-neutral-400">No Image</div>
+                  )}
+                  <span className="absolute top-3 left-3 bg-white/90 px-3 py-1 text-[10px] font-semibold rounded-full text-orange-700">
+                    {menu.category}
+                  </span>
+                </div>
+                <div className="p-4 flex flex-col flex-grow">
+                  <h3 className="text-md font-bold text-neutral-900 line-clamp-1 mb-1">{menu.name}</h3>
+                  {menu.review_count > 0 && (
+                    <div className="flex items-center gap-1 mb-2">
+                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                      <span className="text-xs font-semibold text-neutral-700">{Number(menu.avg_rating).toFixed(1)}</span>
+                    </div>
+                  )}
+                  <p className="text-xs text-neutral-500 mt-1 flex-grow line-clamp-2">{menu.description}</p>
+                  <div className="mt-4 pt-3 border-t border-neutral-50">
+                    <span className="text-sm font-bold text-orange-600">Rp {menu.price.toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+          
+          <div className="mt-12 text-center">
+             <button onClick={() => navigate('/menus')} className="text-sm font-semibold text-orange-600 hover:text-orange-700 underline underline-offset-4 uppercase tracking-wider">
+                Lihat Semua Menu
+             </button>
           </div>
         </div>
       </section>
