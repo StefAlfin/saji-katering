@@ -280,7 +280,7 @@ export default function UserDashboard() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-neutral-500">Total Harga</p>
-                    <p className="font-bold text-orange-600 text-lg">Rp {order.total_price.toLocaleString('id-ID')}</p>
+                    <p className="font-bold text-orange-600 text-lg">Rp {Number(order.total_price || 0).toLocaleString('id-ID')}</p>
                   </div>
                 </div>
               </motion.div>
@@ -302,10 +302,10 @@ export default function UserDashboard() {
                       </div>
                       <div className="flex-grow">
                         <p className="font-medium text-sm leading-tight text-neutral-900">{item.name}</p>
-                        <p className="text-xs text-neutral-500 mt-1">{item.quantity} x Rp {item.price.toLocaleString('id-ID')}</p>
+                        <p className="text-xs text-neutral-500 mt-1">{item.quantity} x Rp {Number(item.price || 0).toLocaleString('id-ID')}</p>
                       </div>
                       <div className="font-semibold text-sm">
-                        Rp {(item.quantity * item.price).toLocaleString('id-ID')}
+                        Rp {Number((item.quantity * item.price) || 0).toLocaleString('id-ID')}
                       </div>
                     </div>
                     {activeOrder.status === 'Selesai' && (
@@ -349,7 +349,7 @@ export default function UserDashboard() {
                 </div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-neutral-500">Subtotal</span>
-                  <span className="font-semibold">Rp {activeOrder.total_price.toLocaleString('id-ID')}</span>
+                  <span className="font-semibold">Rp {Number(activeOrder.total_price || 0).toLocaleString('id-ID')}</span>
                 </div>
                 <div className="border-t border-neutral-200 mt-2 pt-2 mb-2 text-sm">
                   {activeOrder.event_date && (
@@ -363,7 +363,7 @@ export default function UserDashboard() {
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2 border-t border-neutral-200 mt-2 mb-4">
                   <span>Total</span>
-                  <span className="text-orange-600">Rp {activeOrder.total_price.toLocaleString('id-ID')}</span>
+                  <span className="text-orange-600">Rp {Number(activeOrder.total_price || 0).toLocaleString('id-ID')}</span>
                 </div>
 
                 {activeOrder.status === 'Selesai' && (

@@ -24,6 +24,7 @@ export default function Reviews() {
     fetch('/api/all-reviews')
       .then(r => r.json())
       .then(data => {
+        if (!Array.isArray(data)) return;
         const mapped = data.map((d: any) => ({
           id: d.id,
           rating: d.rating,

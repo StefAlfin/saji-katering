@@ -52,12 +52,14 @@ export default function AdminDashboard() {
         fetch('/api/contact-info')
       ]);
 
-      setOrders(await oRes.json());
-      setUsers(await uRes.json());
-      setMenus(await mRes.json());
-      setCategories(await cRes.json());
-      setContactMessages(await cmRes.json());
-      const ci = await ciRes.json();
+      const [o, u, m, c, cm, ci] = await Promise.all([
+        oRes.json(), uRes.json(), mRes.json(), cRes.json(), cmRes.json(), ciRes.json()
+      ]);
+      setOrders(Array.isArray(o) ? o : []);
+      setUsers(Array.isArray(u) ? u : []);
+      setMenus(Array.isArray(m) ? m : []);
+      setCategories(Array.isArray(c) ? c : []);
+      setContactMessages(Array.isArray(cm) ? cm : []);
       setContactInfo({ 
         address: ci.address || '', 
         phone: ci.phone || '', 
@@ -337,7 +339,7 @@ export default function AdminDashboard() {
                             <td className="py-3 px-4 text-sm text-neutral-600 max-w-[200px] truncate" title={order.address}>{order.address || '-'}</td>
                             <td className="py-3 px-4 text-sm text-neutral-500">{new Date(order.created_at).toLocaleDateString('id-ID')}</td>
                             <td className="py-3 px-4 text-sm font-semibold text-neutral-800">{order.event_date ? new Date(order.event_date).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
-                            <td className="py-3 px-4 text-orange-600 font-semibold">Rp {order.total_price.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-orange-600 font-semibold">Rp {Number(order.total_price || 0).toLocaleString('id-ID')}</td>
                             <td className="py-3 px-4">
                               {order.rating ? (
                                 <div className="text-sm">
@@ -447,7 +449,7 @@ export default function AdminDashboard() {
                         <img src={menu.image_url || 'https://via.placeholder.com/60'} alt={menu.name} className="w-16 h-16 object-cover rounded-lg" />
                         <div>
                           <p className="font-bold">{menu.name}</p>
-                          <p className="text-orange-600 text-sm">Rp {menu.price.toLocaleString('id-ID')}</p>
+                          <p className="text-orange-600 text-sm">Rp {Number(menu.price || 0).toLocaleString('id-ID')}</p>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">

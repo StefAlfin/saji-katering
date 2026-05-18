@@ -164,7 +164,7 @@ export default function Cart() {
                 </div>
                 <div className="flex-grow">
                   <h3 className="font-bold text-lg text-neutral-900">{item.name}</h3>
-                  <p className="text-orange-600 font-semibold mt-1">Rp {item.price.toLocaleString('id-ID')}</p>
+                  <p className="text-orange-600 font-semibold mt-1">Rp {Number(item.price || 0).toLocaleString('id-ID')}</p>
                   
                   <div className="flex items-center gap-4 mt-3">
                     <div className="flex items-center bg-neutral-100 rounded-lg">
@@ -187,7 +187,7 @@ export default function Cart() {
                   </div>
                 </div>
                 <div className="hidden sm:block text-right self-end font-bold text-lg">
-                  Rp {(item.price * item.quantity).toLocaleString('id-ID')}
+                  Rp {Number((item.price || 0) * item.quantity).toLocaleString('id-ID')}
                 </div>
               </div>
             ))}
@@ -202,12 +202,12 @@ export default function Cart() {
               </div>
               <div className="flex justify-between mb-6 text-neutral-600">
                 <span>Subtotal</span>
-                <span>Rp {total.toLocaleString('id-ID')}</span>
+                <span>Rp {Number(total || 0).toLocaleString('id-ID')}</span>
               </div>
               <div className="border-t border-neutral-200 pt-4 mb-6">
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total Tagihan</span>
-                  <span className="text-orange-600">Rp {total.toLocaleString('id-ID')}</span>
+                  <span className="text-orange-600">Rp {Number(total || 0).toLocaleString('id-ID')}</span>
                 </div>
               </div>
               

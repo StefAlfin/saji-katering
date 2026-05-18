@@ -28,6 +28,10 @@ export default function Home() {
     fetch('/api/all-reviews')
       .then(r => r.json())
       .then(data => {
+        if (!Array.isArray(data)) {
+          console.error("Reviews API did not return an array:", data);
+          return;
+        }
         const mapped = data.map((d: any) => ({
           id: d.id,
           rating: d.rating,
@@ -40,7 +44,7 @@ export default function Home() {
 
     fetch('/api/menus')
       .then(r => r.json())
-      .then(setMenus)
+      .then(data => setMenus(Array.isArray(data) ? data : []))
       .catch(console.error);
   }, []);
 
@@ -161,7 +165,7 @@ export default function Home() {
                   )}
                   <p className="text-xs text-neutral-500 mt-1 flex-grow line-clamp-2">{menu.description}</p>
                   <div className="mt-4 pt-3 border-t border-neutral-50">
-                    <span className="text-sm font-bold text-orange-600">Rp {menu.price.toLocaleString('id-ID')}</span>
+                    <span className="text-sm font-bold text-orange-600">Rp {Number(menu.price || 0).toLocaleString('id-ID')}</span>
                   </div>
                 </div>
               </motion.div>

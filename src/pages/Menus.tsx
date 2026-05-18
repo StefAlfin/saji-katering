@@ -50,13 +50,13 @@ export default function Menus() {
   useEffect(() => {
     fetch('/api/menus')
       .then(r => r.json())
-      .then(setMenus)
+      .then(data => setMenus(Array.isArray(data) ? data : []))
       .catch(console.error);
 
     if (user && token) {
       fetch('/api/wishlist', { headers: { 'Authorization': `Bearer ${token}` } })
         .then(r => r.json())
-        .then(setWishlists)
+        .then(data => setWishlists(Array.isArray(data) ? data : []))
         .catch(console.error);
     }
   }, [user, token]);
@@ -223,7 +223,7 @@ export default function Menus() {
                         )}
                       </td>
                       <td className="px-6 py-5">
-                        <p className="font-semibold text-orange-600 whitespace-nowrap">Rp {menu.price.toLocaleString('id-ID')}</p>
+                        <p className="font-semibold text-orange-600 whitespace-nowrap">Rp {Number(menu.price || 0).toLocaleString('id-ID')}</p>
                       </td>
                       <td className="px-6 py-5">
                          <div className="flex items-center justify-center gap-2">
@@ -336,7 +336,7 @@ export default function Menus() {
               <div className="p-6 md:p-8 bg-neutral-50 border-t border-neutral-100 mt-auto">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-neutral-500">Harga</span>
-                  <span className="text-2xl font-bold text-orange-600">Rp {selectedMenu.price.toLocaleString('id-ID')}</span>
+                  <span className="text-2xl font-bold text-orange-600">Rp {Number(selectedMenu.price || 0).toLocaleString('id-ID')}</span>
                 </div>
                 {user?.role !== 'admin' && (
                   <div className="flex gap-4">
