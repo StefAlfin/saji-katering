@@ -17,9 +17,9 @@ export default function Menus() {
 
   const filteredMenus = menus.filter(menu => {
     const matchSearch = !searchQuery || (
-      menu.name?.toLowerCase().includes(searchQuery) ||
-      menu.description?.toLowerCase().includes(searchQuery) ||
-      menu.category?.toLowerCase().includes(searchQuery)
+      (menu.name || '').toLowerCase().includes(searchQuery) ||
+      (menu.description || '').toLowerCase().includes(searchQuery) ||
+      (menu.category || '').toLowerCase().includes(searchQuery)
     );
     const matchCategory = !categoryFilter || menu.category === categoryFilter;
     return matchSearch && matchCategory;

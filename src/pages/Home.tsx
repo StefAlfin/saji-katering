@@ -45,8 +45,8 @@ export default function Home() {
   }, []);
 
   const filteredMenus = menus.filter(menu => {
-    const matchSearch = menu.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        menu.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = (menu.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        (menu.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchSearch;
   });
 
