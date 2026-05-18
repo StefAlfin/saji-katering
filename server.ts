@@ -34,11 +34,15 @@ async function setupDatabase(): Promise<Database> {
   try {
     if (process.env.VERCEL && !fs.existsSync('/tmp/database.sqlite')) {
       // Search for the original database.sqlite in common Vercel output directories
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
       const pathsToTry = [
         path.join(process.cwd(), 'database.sqlite'),
         path.join(process.cwd(), '..', 'database.sqlite'),
         path.join(process.cwd(), '..', '..', 'database.sqlite'),
         path.join(process.cwd(), 'dist', 'database.sqlite'),
+        path.join(__dirname, 'database.sqlite'),
+        path.join(__dirname, '..', 'database.sqlite'),
         '/var/task/database.sqlite', // Vercel AWX Lambda default
         '/var/task/user/database.sqlite'
       ];
